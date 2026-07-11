@@ -25,7 +25,7 @@
 .tool-head .t{ font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); }
 .tool-head .badge{ font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--ink-faint); text-transform:uppercase; }
 .tool-frame{ position:relative; width:100%; background:#050a10; line-height:0; }
-.flycam{ display:block; width:100%; height:74vh; min-height:520px; border:0; }
+.flycam{ display:block; width:100%; height:74vh; min-height:520px; border:0; pointer-events:none; }
 @media(max-width:700px){ .flycam{ height:64vh; min-height:420px; } }
 .tool-foot{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px 28px; border-top:1px solid var(--line); flex-wrap:wrap; }
 .tool-foot .hint{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--ink-faint); text-transform:uppercase; }
@@ -93,13 +93,13 @@
 <section class="tool" id="tool">
   <div class="tool-head">
     <span class="t">◈ System Board 01 — the Overland Telegraph</span>
-    <span class="badge">FLYCAM · DRAG / SCROLL · WEBGL</span>
+    <span class="badge">FLYCAM · AUTO-CAM · WEBGL</span>
   </div>
   <div class="tool-frame">
     <iframe class="flycam" src="./overland-telegraph-flycam.html" title="System Board 01 — The Overland Telegraph" loading="lazy"></iframe>
   </div>
   <div class="tool-foot">
-    <span class="hint">The broadcast system board — the same graphic from the episode. Drag to look around; scroll to fly the line.</span>
+    <span class="hint">The broadcast system board — the same graphic from the episode, running its auto-cam. Open it fullscreen to look around and fly the line yourself.</span>
     <a class="btn" href="./overland-telegraph-flycam.html" target="_blank" rel="noopener">Open fullscreen ↗</a>
   </div>
 </section>
