@@ -24,6 +24,11 @@
 .tool-head{ display:flex; justify-content:space-between; align-items:center; padding:18px 28px; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:10px; }
 .tool-head .t{ font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); }
 .tool-head .badge{ font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--ink-faint); text-transform:uppercase; }
+.tool-frame{ position:relative; width:100%; background:#050a10; line-height:0; }
+.flycam{ display:block; width:100%; height:74vh; min-height:520px; border:0; }
+@media(max-width:700px){ .flycam{ height:64vh; min-height:420px; } }
+.tool-foot{ display:flex; justify-content:space-between; align-items:center; gap:14px; padding:14px 28px; border-top:1px solid var(--line); flex-wrap:wrap; }
+.tool-foot .hint{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--ink-faint); text-transform:uppercase; }
 .tool-body{ display:grid; grid-template-columns:1fr 340px; min-height:560px; }
 @media(max-width:900px){ .tool-body{ grid-template-columns:1fr; } }
 .stage{ position:relative; min-height:440px; }
@@ -87,46 +92,15 @@
 <!-- ============ INTERACTIVE TOOL ============ -->
 <section class="tool" id="tool">
   <div class="tool-head">
-    <span class="t">◈ The Signal Line — interactive extra</span>
-    <span class="badge">DRAG TO ROTATE · WEBGL</span>
+    <span class="t">◈ System Board 01 — the Overland Telegraph</span>
+    <span class="badge">FLYCAM · DRAG / SCROLL · WEBGL</span>
   </div>
-  <div class="tool-body">
-    <div class="stage">
-      <canvas id="sig-canvas"></canvas>
-      <div class="stationlabel" id="sig-label"></div>
-      <div class="hint">Adelaide → Darwin · 3,200 km · 11 repeater stations</div>
-    </div>
-    <aside class="panel-side">
-      <h4>◂ Transmission Console</h4>
-      <div class="readout two">
-        <div class="cell"><div class="k">Distance sent</div><div class="v" id="r-dist">0<small> km</small></div></div>
-        <div class="cell"><div class="k">Repeaters</div><div class="v" id="r-rep">0<small> / 11</small></div></div>
-      </div>
-      <div class="readout" style="margin-bottom:18px">
-        <div class="cell"><div class="k">Current relay</div><div class="v" id="r-station" style="font-size:24px">— Adelaide</div></div>
-      </div>
-
-      <div class="control">
-        <label>Scrub the line <b id="r-pct">0%</b></label>
-        <input id="scrub" type="range" min="0" max="1000" value="0">
-      </div>
-      <div class="btrow">
-        <button class="btn primary" id="send">▸ Send message</button>
-        <button class="btn" id="reset">Reset</button>
-      </div>
-
-      <div class="compare">
-        <div class="row wire">
-          <span class="m">By wire · 1872</span>
-          <span class="n" id="c-wire">~5 hrs</span>
-        </div>
-        <div class="row sea">
-          <span class="m">By sea mail · pre-1872</span>
-          <span class="n">~3 months</span>
-        </div>
-      </div>
-      <p class="notice" style="margin-top:16px">Timings are illustrative — the wire carried a message to London in hours where a letter took months by ship.</p>
-    </aside>
+  <div class="tool-frame">
+    <iframe class="flycam" src="./overland-telegraph-flycam.html" title="System Board 01 — The Overland Telegraph" loading="lazy"></iframe>
+  </div>
+  <div class="tool-foot">
+    <span class="hint">The broadcast system board — the same graphic from the episode. Drag to look around; scroll to fly the line.</span>
+    <a class="btn" href="./overland-telegraph-flycam.html" target="_blank" rel="noopener">Open fullscreen ↗</a>
   </div>
 </section>
 
@@ -179,194 +153,5 @@
     <div><h4>Series</h4><a href="index.html#extras">The Extras</a><a href="index.html#about">About</a><a href="mailto:admin@pixelbird.com.au">Contact</a></div>
   </div>
 </footer>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="australia.js"></script>
-<script>
-/* ============================================================
-   THE SIGNAL LINE — interactive Overland Telegraph tool
-   ============================================================ */
-(function(){
-  const canvas = document.getElementById('sig-canvas');
-  const label  = document.getElementById('sig-label');
-  const S = window.STBA;
-  if(!window.THREE){ return; }
-
-  let renderer;
-  try{ renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); }
-  catch(e){ return; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1000);
-  camera.position.set(0,0,72);
-  const world = new THREE.Group();
-  scene.add(world);
-
-  function proj(lng,lat){ return new THREE.Vector3((lng-133)*1.55, (lat+27)*1.78, 0); }
-
-  // haversine km
-  function hav(a,b){
-    const R=6371, toR=Math.PI/180;
-    const dLat=(b[1]-a[1])*toR, dLng=(b[0]-a[0])*toR;
-    const la1=a[1]*toR, la2=b[1]*toR;
-    const h=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
-    return 2*R*Math.asin(Math.sqrt(h));
-  }
-
-  // graticule
-  for(let lng=115; lng<=150; lng+=5){
-    world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([proj(lng,-10),proj(lng,-40)]),
-      new THREE.LineBasicMaterial({color:0x11202b, transparent:true, opacity:.6})));
-  }
-  for(let lat=-12; lat>=-38; lat-=5){
-    world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([proj(115,lat),proj(150,lat)]),
-      new THREE.LineBasicMaterial({color:0x11202b, transparent:true, opacity:.6})));
-  }
-
-  // coastline
-  const coast = new THREE.LineLoop(
-    new THREE.BufferGeometry().setFromPoints(S.OUTLINE.map(c=>proj(c[0],c[1]))),
-    new THREE.LineBasicMaterial({color:0x3a92b0, transparent:true, opacity:.55}));
-  world.add(coast);
-
-  // dot texture
-  const c=document.createElement('canvas'); c.width=c.height=64;
-  const cx=c.getContext('2d'); const g=cx.createRadialGradient(32,32,0,32,32,32);
-  g.addColorStop(0,'#fff'); g.addColorStop(.35,'rgba(255,255,255,.85)'); g.addColorStop(1,'rgba(255,255,255,0)');
-  cx.fillStyle=g; cx.fillRect(0,0,64,64);
-  const TEX=new THREE.CanvasTexture(c);
-
-  // build OTL route + station data with cumulative km
-  const stationsLL = S.OTL.map(s=>[s[1],s[2]]);
-  const stationNames = S.OTL.map(s=>s[0]);
-  let cum=[0]; for(let i=1;i<stationsLL.length;i++){ cum.push(cum[i-1]+hav(stationsLL[i-1],stationsLL[i])); }
-  const totalKm = cum[cum.length-1];
-  const stationPts = stationsLL.map(ll=>proj(ll[0],ll[1]));
-  const curve = new THREE.CatmullRomCurve3(stationPts, false, 'catmullrom', 0.05);
-
-  // amber route line (glow layer + core)
-  world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(300)),
-    new THREE.LineBasicMaterial({color:0x7a4d10, transparent:true, opacity:.5})));
-  const routeCore = new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(300)),
-    new THREE.LineBasicMaterial({color:0xffb020, transparent:true, opacity:.9}));
-  world.add(routeCore);
-
-  // progress line (bright) drawn up to current u
-  const progGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(300));
-  const progLine = new THREE.Line(progGeo, new THREE.LineBasicMaterial({color:0xffe08a, transparent:true, opacity:1}));
-  world.add(progLine);
-
-  // station meshes (raycast targets)
-  const stationMeshes=[];
-  const sGeo=new THREE.SphereGeometry(0.7,10,10);
-  stationsLL.forEach((ll,i)=>{
-    const m=new THREE.Mesh(sGeo, new THREE.MeshBasicMaterial({color:0xffb020}));
-    m.position.copy(stationPts[i]);
-    m.userData={name:stationNames[i], km:Math.round(cum[i]), i};
-    world.add(m); stationMeshes.push(m);
-  });
-
-  // the travelling signal pulse
-  const pulseGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3()]);
-  const pulse=new THREE.Points(pulseGeo, new THREE.PointsMaterial({
-    color:0xffffff, size:3.4, map:TEX, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false}));
-  world.add(pulse);
-
-  // center
-  const box=new THREE.Box3().setFromObject(coast);
-  const ctr=box.getCenter(new THREE.Vector3());
-  world.position.set(-ctr.x,-ctr.y,0);
-  world.rotation.x=-0.08;
-
-  // ---- state ----
-  let u=0;              // 0..1 along line
-  let sending=false;
-  const scrub=document.getElementById('scrub');
-  const rDist=document.getElementById('r-dist'), rRep=document.getElementById('r-rep'),
-        rStation=document.getElementById('r-station'), rPct=document.getElementById('r-pct'),
-        cWire=document.getElementById('c-wire');
-
-  function stationIndexAt(u){
-    const km=u*totalKm; let idx=0;
-    for(let i=0;i<cum.length;i++){ if(cum[i]<=km) idx=i; }
-    return idx;
-  }
-  function updateReadout(){
-    const km=u*totalKm;
-    const idx=stationIndexAt(u);
-    rDist.innerHTML=Math.round(km).toLocaleString()+'<small> km</small>';
-    const repeatersPassed=Math.max(0,Math.min(11, idx));  // Adelaide=0 relay, then repeaters
-    rRep.innerHTML=repeatersPassed+'<small> / 11</small>';
-    rStation.textContent=(u>=1?'✓ ':'— ')+stationNames[idx];
-    rPct.textContent=Math.round(u*100)+'%';
-    const hrs=(u*5); cWire.textContent = u<=0 ? '—' : ('~'+(hrs<1?('0'+ (Math.round(hrs*60))+' min'):(hrs.toFixed(1)+' hrs')));
-    // draw progress line up to u
-    const n=300, keep=Math.max(1,Math.round(n*u));
-    const pts=curve.getPoints(n);
-    progGeo.setFromPoints(pts.slice(0,keep+1));
-    // pulse position
-    const p=curve.getPoint(Math.min(u,1));
-    pulseGeo.setFromPoints([p]); pulseGeo.attributes.position.needsUpdate=true;
-    pulse.material.opacity = (u>0 && u<1) ? 1 : (u>=1?0.6:0);
-    // highlight stations passed
-    stationMeshes.forEach((m,i)=> m.material.color.setHex(cum[i]<=km?0xffe08a:0x8a5a12));
-  }
-  function setU(v){ u=Math.max(0,Math.min(1,v)); scrub.value=Math.round(u*1000); updateReadout(); }
-
-  scrub.addEventListener('input',()=>{ sending=false; setU(scrub.value/1000); });
-  document.getElementById('reset').addEventListener('click',()=>{ sending=false; setU(0); });
-  document.getElementById('send').addEventListener('click',()=>{ setU(0); sending=true; });
-
-  // ---- drag to rotate ----
-  let dragging=false, px=0, py=0, ry=0, rx=-0.08;
-  canvas.addEventListener('pointerdown',e=>{ dragging=true; px=e.clientX; py=e.clientY; });
-  window.addEventListener('pointerup',()=>dragging=false);
-  window.addEventListener('pointermove',e=>{
-    if(dragging){ ry+=(e.clientX-px)*0.006; rx+=(e.clientY-py)*0.004; rx=Math.max(-0.6,Math.min(0.4,rx)); px=e.clientX; py=e.clientY; }
-    hover(e);
-  });
-
-  // ---- hover stations ----
-  const ray=new THREE.Raycaster(); ray.params.Points={threshold:1.2};
-  const mouse=new THREE.Vector2();
-  function hover(e){
-    const r=canvas.getBoundingClientRect();
-    mouse.x=((e.clientX-r.left)/r.width)*2-1;
-    mouse.y=-((e.clientY-r.top)/r.height)*2+1;
-    ray.setFromCamera(mouse,camera);
-    const hit=ray.intersectObjects(stationMeshes)[0];
-    if(hit){
-      const d=hit.object.userData;
-      label.style.display='block';
-      label.style.left=(e.clientX-r.left)+'px';
-      label.style.top=(e.clientY-r.top)+'px';
-      label.textContent=d.name+' · '+d.km.toLocaleString()+' km';
-    } else { label.style.display='none'; }
-  }
-  canvas.addEventListener('pointerleave',()=>label.style.display='none');
-
-  function resize(){
-    const w=canvas.clientWidth, h=canvas.clientHeight;
-    if(canvas.width!==w||canvas.height!==h) renderer.setSize(w,h,false);
-    camera.aspect=w/h;
-    camera.position.z = w<620?96:(w<900?82:72);
-    camera.updateProjectionMatrix();
-  }
-
-  const clock=new THREE.Clock();
-  function frame(){
-    resize();
-    if(sending){ setU(u + clock.getDelta()*0.16); if(u>=1){ sending=false; } }
-    else { clock.getDelta(); }
-    world.rotation.y += (ry - world.rotation.y)*0.1;
-    world.rotation.x += (rx - world.rotation.x)*0.1;
-    routeCore.material.opacity = 0.7 + Math.sin(performance.now()*0.003)*0.2;
-    renderer.render(scene,camera);
-    requestAnimationFrame(frame);
-  }
-  updateReadout(); resize(); frame();
-})();
-</script>
 </body>
 </html>

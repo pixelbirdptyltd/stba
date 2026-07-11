@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SYSTEM BOARD 01 · The Overland Telegraph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sx:5%; --sy:5%; --sa:2.5%;   /* TV title-safe (text) + action-safe (frame) */
+    --bg:#050a10;
+    --land:#0c1622;
+    --coast:#3c5a72;
+    --copper:#ff9d45;
+    --hot:#ffd9a0;
+    --ink:#e9e2d2;
+    --dim:#6f8093;
+    --hairline:rgba(111,128,147,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    position:fixed;inset:0;overflow:hidden;background:var(--bg);
+    font-family:'JetBrains Mono',monospace;color:var(--ink);
+    -webkit-user-select:none;user-select:none;
+  }
+  #stage,#stage canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+
+  /* ---------- station labels (projected from 3D) ---------- */
+  #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+  .stn{
+    position:absolute;left:0;top:0;white-space:nowrap;
+    opacity:0;transform:translate(12px,-50%) translateX(-6px);
+    transition:opacity .5s ease,transform .5s ease;
+    will-change:transform,opacity;
+  }
+  .stn.left{text-align:right}
+  .stn .nm{font-size:13.75px;font-weight:700;letter-spacing:.14em;color:var(--ink)}
+  .stn .sb{font-size:11.25px;letter-spacing:.12em;color:var(--copper);margin-top:1px}
+  .stn.on{opacity:1}
+  .stn.ghost{opacity:.28}
+  #labels.compact .sb{display:none}
+  #labels.compact .nm{font-size:11.25px}
+
+  /* ---------- HUD ---------- */
+  .hud{position:absolute;z-index:5;pointer-events:none}
+  #tl{position:relative;z-index:1;max-width:72%}
+  #tl .eyebrow{font-size:11.25px;letter-spacing:.32em;color:var(--dim)}
+  #tl h1{
+    font-family:'Barlow Condensed',sans-serif;font-weight:700;
+    font-size:clamp(27.5px,6.75vw,55.0px);letter-spacing:.06em;line-height:1.02;
+    margin:4px 0 5px;color:var(--ink)
+  }
+  #tl h1 em{font-style:normal;color:var(--copper)}
+  #tl .sub{font-size:11.25px;letter-spacing:.18em;color:var(--dim)}
+
+  #tr{top:var(--sy);right:var(--sx);text-align:right}
+  #tr .live{font-size:11.25px;letter-spacing:.28em;color:var(--dim)}
+  #tr .live b{color:var(--copper);font-weight:400}
+  #tr .dot{display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--copper);margin-right:6px;vertical-align:1px;
+    animation:blink 1.6s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+  #btnCam{display:none;margin-top:8px;pointer-events:auto}
+
+  #readouts{
+    right:var(--sx);bottom:calc(var(--sy) + 42px);
+    display:grid;grid-template-columns:auto auto;gap:7px 26px;text-align:right;justify-items:end
+  }
+  .ro .k{font-size:10.0px;letter-spacing:.26em;color:var(--dim)}
+  .ro .v{font-size:18.75px;font-weight:700;letter-spacing:.06em;color:var(--ink);margin-top:1px}
+  .ro .v i{font-style:normal;font-size:11.25px;font-weight:400;color:var(--dim)}
+  #status{
+    left:var(--sx);bottom:var(--sy);
+    font-size:11.25px;letter-spacing:.2em;color:var(--copper)
+  }
+
+  #ctrls{right:var(--sx);bottom:var(--sy);
+    display:flex;gap:8px;pointer-events:auto}
+  button{
+    pointer-events:auto;appearance:none;background:rgba(5,10,16,.55);
+    border:1px solid var(--hairline);color:var(--ink);
+    font-family:'JetBrains Mono',monospace;font-size:11.25px;letter-spacing:.2em;
+    padding:7px 11px;cursor:pointer;backdrop-filter:blur(3px);
+  }
+  button:hover{border-color:var(--copper);color:var(--hot)}
+  button:focus-visible{outline:1px solid var(--copper);outline-offset:2px}
+  #note{left:50%;transform:translateX(-50%);bottom:var(--sy);
+    font-size:9.38px;letter-spacing:.14em;color:rgba(111,128,147,.6);text-align:center;white-space:nowrap}
+
+  /* ---------- finale banner ---------- */
+  #banner{
+    left:50%;bottom:calc(110px + env(safe-area-inset-bottom));
+    transform:translateX(-50%) translateY(14px);text-align:center;
+    opacity:0;transition:opacity .9s ease,transform .9s ease
+  }
+  #banner.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #banner .b1{
+    font-family:'Barlow Condensed',sans-serif;font-weight:700;
+    font-size:clamp(22.5px,5.5vw,40.0px);letter-spacing:.14em;color:var(--hot)
+  }
+  #banner .b2{font-size:12.5px;letter-spacing:.3em;color:var(--ink);margin-top:6px}
+  #banner .morse{
+    font-size:13.75px;letter-spacing:.42em;color:var(--copper);margin-top:9px;
+    animation:morse 1.1s steps(2) infinite
+  }
+  @keyframes morse{0%,100%{opacity:.9}50%{opacity:.25}}
+
+  /* ---------- scrub bar ---------- */
+  #scrub{position:absolute;left:0;right:0;bottom:0;height:26px;z-index:6;
+    cursor:pointer;touch-action:none}
+  #scrub .track{position:absolute;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom));
+    height:2px;background:rgba(111,128,147,.25)}
+  #scrub .fill{position:absolute;left:0;bottom:calc(8px + env(safe-area-inset-bottom));
+    height:2px;width:0;background:var(--copper);box-shadow:0 0 8px rgba(255,157,69,.7)}
+  #scrub .knob{position:absolute;bottom:calc(4px + env(safe-area-inset-bottom));
+    width:10px;height:10px;border-radius:50%;background:var(--hot);
+    transform:translateX(-50%);box-shadow:0 0 10px rgba(255,157,69,.9)}
+
+  /* ---------- board atmosphere ---------- */
+  #vig{position:absolute;inset:0;pointer-events:none;z-index:4;
+    background:
+      radial-gradient(120% 90% at 50% 42%,transparent 55%,rgba(2,5,9,.55) 100%),
+      repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 3px)}
+  .tick{position:absolute;width:14px;height:14px;z-index:4;pointer-events:none;
+    border-color:rgba(111,128,147,.5)!important}
+  .tick.tl2{top:var(--sa);left:var(--sa);border-left:1px solid;border-top:1px solid}
+  .tick.tr2{top:var(--sa);right:var(--sa);border-right:1px solid;border-top:1px solid}
+  .tick.bl2{bottom:var(--sa);left:var(--sa);border-left:1px solid;border-bottom:1px solid}
+  .tick.br2{bottom:var(--sa);right:var(--sa);border-right:1px solid;border-bottom:1px solid}
+
+  @media (max-width:640px){
+    #readouts{gap:5px 18px}
+    .ro .v{font-size:15.0px}
+    #tr .live span.hideS{display:none}
+    #banner{bottom:calc(186px + env(safe-area-inset-bottom))}
+    #banner .morse{font-size:11.25px}
+  }
+#storycard{position:absolute;z-index:5;left:var(--sx);top:50%;max-width:min(50vw,620px);pointer-events:none;
+  opacity:0;transform:translateY(calc(-50% + 14px));transition:opacity .55s ease, transform .55s ease}
+#storycard.show{opacity:1;transform:translateY(-50%)}
+#storycard .nm{font-family:'Barlow Condensed',sans-serif;font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;line-height:1.02;font-size:clamp(32.5px,5.0vw,62.5px);color:var(--copper);text-shadow:0 2px 18px rgba(0,0,0,.65)}
+#storycard .meta{font-family:'JetBrains Mono',monospace;font-size:13.75px;letter-spacing:.16em;
+  color:var(--dim);margin:3px 0 7px}
+#storycard .ln{font-family:'Barlow Condensed',sans-serif;font-weight:500;line-height:1.24;
+  font-size:clamp(20.0px,2.62vw,30.0px);color:var(--ink);text-shadow:0 1px 10px rgba(0,0,0,.6)}
+#titlewrap{position:absolute;left:var(--sx);top:calc(var(--sy) + 2vw);z-index:5;pointer-events:none}
+#autitle{position:absolute;left:-4%;top:50%;transform:translateY(-50%);width:12vw;max-width:200px;opacity:0.22}
+#autitle svg{width:100%;height:auto;display:block;overflow:visible;filter:drop-shadow(0 0 5px rgba(60,90,114,0.45))}
+#autitle .aufill{fill:#b7cbd9;stroke:#d7e4ec;stroke-width:1.1;vector-effect:non-scaling-stroke}
+#altscale{position:absolute;z-index:5;right:var(--sx);top:50%;transform:translateY(-50%);
+  height:34vh;width:60px;pointer-events:none;opacity:0.5;font-family:'JetBrains Mono',monospace}
+#altscale .track{position:absolute;right:10px;top:0;bottom:0;width:1px;background:var(--hairline)}
+#altscale .tick{position:absolute;right:10px;width:7px;height:1px;background:var(--hairline)}
+#altscale .lbl{position:absolute;right:10px;top:-16px;font-size:8px;letter-spacing:.22em;color:var(--dim)}
+#altscale .ind{position:absolute;right:4px;width:14px;height:2px;background:var(--copper);box-shadow:0 0 5px var(--copper);bottom:0}
+#altscale .val{position:absolute;right:24px;transform:translateY(50%);font-size:9px;color:var(--ink);white-space:nowrap;text-align:right;bottom:0}
+.stn{transition:opacity .22s ease}
+#compass{position:absolute;z-index:5;top:calc(var(--sy) - 2px);left:50%;transform:translateX(-50%);
+  width:240px;height:20px;pointer-events:none;opacity:0.5;font-family:'JetBrains Mono',monospace}
+#compass .cwin{position:absolute;inset:0;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+#compass .ctape{position:absolute;top:0;height:100%;white-space:nowrap;will-change:transform}
+#compass .ct{position:absolute;top:5px;transform:translateX(-50%);font-size:8px;letter-spacing:.05em;color:var(--dim)}
+#compass .ct.card{color:var(--ink);font-weight:700;font-size:11px;top:3px}
+#compass .cmark{position:absolute;left:50%;top:0;bottom:6px;width:1px;background:var(--copper);box-shadow:0 0 5px var(--copper);transform:translateX(-50%)}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="labels"></div>
+
+<div id="titlewrap">
+<div id="autitle"></div>
+<div class="hud" id="tl">
+  <div class="eyebrow">SYSTEMS THAT BUILT AUSTRALIA</div>
+  <h1>THE OVERLAND <em>TELEGRAPH</em></h1>
+  <div class="sub">ADELAIDE → DARWIN · 3,200 KM · 36,000 POLES · 11 REPEATERS</div>
+</div>
+</div>
+
+<div class="hud" id="tr">
+  <div class="live"><span class="dot"></span><span class="hideS">ROUTE DRAW · </span><b>LIVE</b></div>
+  <button id="btnCam">AUTO CAM</button>
+</div>
+
+<div class="hud" id="readouts">
+  <div class="ro"><div class="k">KM BUILT</div><div class="v"><span id="km">0000</span> <i>/ 3200</i></div></div>
+  <div class="ro"><div class="k">POLES</div><div class="v"><span id="poles">0</span></div></div>
+  <div class="ro"><div class="k">REPEATERS ONLINE</div><div class="v"><span id="stn">00</span> <i>/ 11</i></div></div>
+  <div class="ro"><div class="k">DATE</div><div class="v" id="date">SEP 1870</div></div>
+</div>
+<div class="hud" id="status">STANDBY · SURVEY LOCKED — C. TODD, 1870</div>
+
+<div class="hud" id="ctrls">
+  <button id="btnReplay">↺ REPLAY</button>
+  <button id="btnPlay">PAUSE</button>
+  <button id="btnSpeed">SPD ×1</button>
+</div>
+<div class="hud" id="note">N ↑ · STYLISED MAP · SIMPLIFIED COASTLINE · STATION POSITIONS APPROX.</div>
+
+<div class="hud" id="banner">
+  <div class="b1">LINE THROUGH · 22 AUGUST 1872</div>
+  <div class="b2">ADELAIDE ↔ LONDON — MONTHS BECOME HOURS</div>
+  <div class="morse">— ···· · / ·—— ·· ·—· ·</div>
+</div>
+
+<div id="vig"></div>
+<div class="tick tl2"></div><div class="tick tr2"></div>
+<div class="tick bl2"></div><div class="tick br2"></div>
+
+<div id="scrub"><div class="track"></div><div class="fill"></div><div class="knob"></div></div>
+
+<div id="compass"><div class="cwin"><div id="comptape" class="ctape"></div></div><div class="cmark"></div></div>
+<div id="altscale"><div class="lbl">ALT</div><div class="track"></div>
+<div class="tick" style="bottom:0%"></div><div class="tick" style="bottom:25%"></div><div class="tick" style="bottom:50%"></div><div class="tick" style="bottom:75%"></div><div class="tick" style="bottom:100%"></div>
+<div class="ind"></div><div class="val"></div></div>
+<div id="storycard"><div class="nm"></div><div class="meta"></div><div class="ln"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* =====================================================================
+   SYSTEM BOARD 01 · THE OVERLAND TELEGRAPH  (route-draw prototype)
+   One codebase idea: swap DATA + copy below and this becomes the
+   template for every "Systems That Built Australia" route episode.
+   ===================================================================== */
+
+// ---------------- CONFIG (tweak here) ----------------
+const CFG = {
+  DUR: 54,            // seconds for the full build at ×1
+  INTRO_HOLD: 4.5,    // seconds of wide "survey" shot before build
+  TOTAL_KM: 3200,
+  TOTAL_POLES: 36000,
+  POLE_INSTANCES: 120,        // each visual pole represents ~100 real poles
+  COL: {
+    bg:0x050a10, land:0x0c1622, grid:0x111f31, coast:0x3c5a72,
+    copper:0xff9d45, hot:0xffd9a0, ink:0xe9e2d2, pole:0xc08a4e
+  }
+};
+
+// ---------------- DATA ----------------
+// Repeater chain, Adelaide GPO -> Port Darwin (positions approximate)
+const STATIONS = [
+  {name:'ADELAIDE', kind:'end', sub:'ORIGIN · GENERAL POST OFFICE', lat:-34.93, lon:138.60,
+   story:"The wire begins at the Adelaide GPO — Charles Todd's telegraph office, and the southern door to the world."},
+  {name:'PORT AUGUSTA', r:1, lat:-32.49, lon:137.77,
+   story:"The last real town before the unknown — the jumping-off point into the desert."},
+  {name:'BELTANA', r:2, lat:-30.81, lon:138.42,
+   story:"A Flinders Ranges outpost and supply base, one of the manned stations keeping the signal alive."},
+  {name:'STRANGWAYS SPRINGS', r:3, lat:-29.15, lon:136.57,
+   story:"Built beside desert mound springs — artesian water is the only reason a station could live out here."},
+  {name:'THE PEAKE', r:4, lat:-28.05, lon:135.90,
+   story:"A remote station on the desert's edge — isolation measured in weeks between mails."},
+  {name:'CHARLOTTE WATERS', r:5, lat:-25.92, lon:134.91,
+   story:"The first station over the border into the Territory — a marker of the halfway wilderness."},
+  {name:'ALICE SPRINGS', r:6, lat:-23.70, lon:133.88,
+   story:"Named by Todd for his wife, Alice. The waterhole here became the heart of the inland."},
+  {name:'BARROW CREEK', r:7, lat:-21.53, lon:133.89,
+   story:"Site of violent frontier conflict in 1874. The line crossed Kaytetye Country — the human cost belongs here.  [consult before broadcast]"},
+  {name:'TENNANT CREEK', r:8, lat:-19.65, lon:134.19,
+   story:"A telegraph station that later seeded a gold town — infrastructure pulling settlement in behind it."},
+  {name:'POWELL CREEK', r:9, lat:-18.05, lon:133.73,
+   story:"One of the most isolated links in the whole chain — a handful of operators holding the wire open."},
+  {name:'DALY WATERS', r:10, lat:-16.25, lon:133.37,
+   story:"Deep in the Top End, where the wet season and the country tested the northern crews hardest."},
+  {name:'KATHERINE', r:11, lat:-14.47, lon:132.26,
+   story:"The last inland station before the coast — the tropics closing in on the final stretch."},
+  {name:'DARWIN', kind:'end', sub:'TERMINUS · SUBSEA CABLE → JAVA → LONDON', lat:-12.46, lon:130.84,
+   story:"Terminus. Here the overland line meets the undersea cable to Java and on to London — months collapse to hours."}
+];
+["Where the wire began.","Gateway to the desert.","Flinders Ranges supply base.","Survived on desert springs.","Weeks between the mails.","Over the border, into the Territory.","Named for Todd's wife, Alice.","Frontier conflict, 1874.","Seeded a gold town.","Among the most isolated posts.","Deep in the Top End.","Last stop before the coast.","Terminus - the cable to the world."].forEach((t, i) => { if (STATIONS[i]) STATIONS[i].short = t; });
+
+// Simplified mainland coastline [lon, lat] — stylised, not survey-grade
+const COAST = [
+[126.0,-13.75],[127.4,-13.9],[128.2,-14.9],[129.4,-14.9],[129.8,-13.6],[130.2,-12.9],
+[130.85,-12.4],[131.5,-12.25],[132.3,-12.2],[132.7,-11.6],[133.6,-11.7],[134.3,-12.0],
+[135.2,-12.1],[135.9,-11.9],[136.8,-12.2],[136.5,-13.0],[135.9,-13.8],[135.7,-14.7],
+[136.4,-15.5],[137.4,-16.2],[138.6,-16.8],[139.5,-17.3],[140.5,-17.65],[141.2,-16.8],
+[141.45,-15.4],[141.6,-14.1],[141.9,-12.9],[142.1,-11.8],[142.5,-10.7],[142.8,-11.6],
+[143.2,-12.6],[143.6,-13.7],[144.5,-14.2],[145.3,-15.0],[145.5,-16.1],[146.0,-17.3],
+[146.3,-18.6],[147.4,-19.4],[148.7,-20.2],[149.4,-21.2],[149.9,-22.3],[150.7,-23.3],
+[151.9,-24.2],[152.7,-25.3],[153.15,-26.5],[153.5,-27.5],[153.62,-28.65],[153.2,-30.0],
+[152.9,-31.1],[152.2,-32.2],[151.6,-33.0],[151.2,-33.9],[150.7,-35.1],[150.1,-36.3],
+[149.95,-37.5],[148.6,-37.8],[147.3,-38.2],[146.4,-39.1],[145.5,-38.4],[144.7,-38.3],
+[143.6,-38.8],[142.3,-38.4],[141.3,-38.3],[140.4,-38.0],[139.75,-37.1],[139.7,-36.1],
+[138.9,-35.7],[138.5,-35.63],[138.5,-34.75],[138.2,-34.3],[137.7,-34.95],[137.4,-35.1],
+[137.45,-34.2],[137.8,-33.3],[137.8,-32.55],[137.35,-33.2],[136.9,-33.85],[136.4,-34.6],
+[135.9,-34.9],[135.4,-34.6],[135.0,-33.8],[134.2,-32.9],[133.6,-32.15],[132.3,-32.0],
+[131.1,-31.55],[129.5,-31.65],[127.8,-32.1],[126.2,-32.3],[124.7,-32.95],[123.5,-33.9],
+[122.1,-34.0],[120.6,-34.0],[119.4,-34.5],[118.0,-35.0],[116.7,-35.0],[115.1,-34.35],
+[114.95,-33.55],[115.7,-33.25],[115.65,-32.6],[115.75,-32.0],[115.6,-31.1],[115.1,-30.2],
+[114.6,-29.3],[114.1,-28.3],[113.5,-26.9],[113.4,-26.1],[113.6,-25.3],[113.5,-24.5],
+[113.75,-23.4],[113.65,-22.6],[114.15,-21.85],[115.0,-21.75],[115.9,-21.3],[116.8,-20.7],
+[117.9,-20.5],[119.0,-20.2],[120.3,-19.9],[121.3,-19.2],[122.2,-18.0],[122.4,-17.2],
+[123.0,-16.6],[123.5,-17.2],[123.8,-16.6],[124.5,-16.3],[124.7,-15.5],[125.3,-15.2],
+[125.4,-14.5]
+];
+const TASMANIA = [
+[144.65,-40.75],[145.8,-40.9],[146.8,-41.1],[147.9,-40.85],[148.3,-41.6],[148.0,-42.6],
+[147.5,-43.0],[146.9,-43.6],[146.0,-43.4],[145.3,-42.5],[144.7,-41.4]
+];
+
+// ---------------- TITLE BACKDROP: Australia silhouette ----------------
+(function(){
+  const el = document.getElementById('autitle'); if (!el) return;
+  const C = Math.cos(25.5 * Math.PI / 180);
+  const P = p => [p[0] * C, -p[1]];
+  let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9;
+  COAST.concat(TASMANIA).forEach(p => { const q = P(p); mnx = Math.min(mnx, q[0]); mxx = Math.max(mxx, q[0]); mny = Math.min(mny, q[1]); mxy = Math.max(mxy, q[1]); });
+  const w = mxx - mnx, h = mxy - mny;
+  const d = ring => ring.map((p, i) => { const q = P(p); return (i ? 'L' : 'M') + ((q[0] - mnx) / w * 100).toFixed(2) + ' ' + ((q[1] - mny) / h * 100).toFixed(2); }).join(' ') + ' Z';
+  el.innerHTML = '<svg viewBox="0 0 100 ' + (100 * h / w).toFixed(2) + '" preserveAspectRatio="xMidYMid meet">'
+    + '<path class="aufill" d="' + d(COAST) + '"/>'
+    + '<path class="aufill" d="' + d(TASMANIA) + '"/></svg>';
+})();
+
+// ---------------- PROJECTION ----------------
+const LON0 = 133.5, LAT0 = -25.5;
+const COSF = Math.cos(25.5 * Math.PI / 180);
+const GLOBE_R = 120;   // Earth-curvature radius (scene units): larger = flatter, smaller = more bowed
+function curveDrop(x, z){ return 0; }   // board is flat
+function horizonBend(x, z){ const d = Math.sqrt(x * x + z * z), FLAT = 26, K = 0.005; return d < FLAT ? 0 : (d - FLAT) * (d - FLAT) * K; }
+function ll(lat, lon, y){
+  const x = (lon - LON0) * COSF, z = -(lat - LAT0);
+  return new THREE.Vector3(x, (y || 0) - curveDrop(x, z), z);
+}
+const POLE_H = 0.6, WIRE_Y = 0.56;   // telegraph pole height + strung-wire height
+
+// ---------------- RENDERER / SCENE ----------------
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(CFG.COL.bg, 1);
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(CFG.COL.bg, 60, 190);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 500);
+camera.position.set(0, 40, 40);
+
+// ---------------- TEXTURE HELPERS ----------------
+function glowTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(64,64,0,64,64,64);
+  grd.addColorStop(0,'rgba(255,255,255,1)');
+  grd.addColorStop(0.35,'rgba(255,255,255,.45)');
+  grd.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0,0,128,128);
+  return new THREE.CanvasTexture(c);
+}
+function ringTexture(){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d');
+  g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 5;
+  g.shadowColor = 'rgba(255,255,255,.9)'; g.shadowBlur = 8;
+  g.beginPath(); g.arc(64,64,52,0,Math.PI*2); g.stroke();
+  return new THREE.CanvasTexture(c);
+}
+const TEX_GLOW = glowTexture();
+const TEX_RING = ringTexture();
+
+// ---------------- MAP BOARD ----------------
+const grid = new THREE.GridHelper(200, 100, CFG.COL.grid, CFG.COL.grid);
+grid.position.y = -0.06;
+scene.add(grid);
+
+function landShape(pts){
+  const s = new THREE.Shape();
+  pts.forEach((p, i) => {
+    const v = ll(p[1], p[0]);
+    if (i === 0) s.moveTo(v.x, -v.z); else s.lineTo(v.x, -v.z);
+  });
+  return s;
+}
+const landMat = new THREE.MeshBasicMaterial({color:CFG.COL.land});
+[COAST, TASMANIA].forEach(ring => {
+  const lgeo = new THREE.ShapeGeometry(landShape(ring));
+  const lpos = lgeo.attributes.position;
+  for (let li = 0; li < lpos.count; li++) lpos.setZ(li, -curveDrop(lpos.getX(li), -lpos.getY(li)));
+  lpos.needsUpdate = true;
+  const mesh = new THREE.Mesh(lgeo, landMat);
+  mesh.rotation.x = -Math.PI/2; mesh.position.y = 0.005;
+  scene.add(mesh);
+  const pts = ring.map(p => ll(p[1], p[0], 0.03));
+  const line = new THREE.LineLoop(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color:CFG.COL.coast, transparent:true, opacity:0.95})
+  );
+  scene.add(line);
+});
+
+// map bounds (for camera framing)
+const bounds = new THREE.Box3();
+COAST.forEach(p => bounds.expandByPoint(ll(p[1], p[0])));
+TASMANIA.forEach(p => bounds.expandByPoint(ll(p[1], p[0])));
+const mapCenter = bounds.getCenter(new THREE.Vector3());
+const mapSize = bounds.getSize(new THREE.Vector3());
+
+// ---------------- ROUTE ----------------
+const routePts = STATIONS.map(s => ll(s.lat, s.lon, 0.06));
+const curve = new THREE.CatmullRomCurve3(routePts, false, 'catmullrom', 0.35);
+
+// arc-length param for each station + midpoint of route
+const SAMPLES = 1600;
+const spaced = curve.getSpacedPoints(SAMPLES);
+STATIONS.forEach(s => {
+  const p = ll(s.lat, s.lon, 0.06);
+  let best = 0, bd = Infinity;
+  for (let i = 0; i <= SAMPLES; i++){
+    const d = spaced[i].distanceToSquared(p);
+    if (d < bd){ bd = d; best = i; }
+  }
+  s.u = best / SAMPLES;
+  s.pos = p;
+});
+STATIONS[0].u = 0; STATIONS[STATIONS.length-1].u = 1;
+
+const BPM = 90, BEAT = 60 / BPM;   // musical tempo — set to your track
+// ---------------- BUILD SCHEDULE (travel + dwell at each stop) ----------------
+const HOLD = 8 * BEAT;   // hold 2 bars / 8 beats at each stop                 // seconds parked at each station
+const sched = [];
+(function(){
+  let t = 0;
+  for (let i = 0; i < STATIONS.length; i++){
+    if (i > 0) t += CFG.DUR * (STATIONS[i].u - STATIONS[i-1].u);
+    sched.push({t:t, u:STATIONS[i].u});
+    t += HOLD;
+    sched.push({t:t, u:STATIONS[i].u});
+  }
+})();
+const BUILD_TOTAL = sched[sched.length - 1].t;
+
+// recap schedule: fly back Darwin -> Adelaide with a brief hold at each stop
+const rec = [];
+(function(){
+  let t = 0; const RHOLD = 1.4;
+  const rev = STATIONS.slice().reverse();
+  for (let i = 0; i < rev.length; i++){
+    if (i > 0) t += 11 * (rev[i - 1].u - rev[i].u);
+    rec.push({t: t, u: rev[i].u});
+    t += RHOLD;
+    rec.push({t: t, u: rev[i].u});
+  }
+})();
+const RECAP_TOTAL = rec[rec.length - 1].t;
+function recapAt(rt){
+  if (rt <= 0) return 1;
+  if (rt >= RECAP_TOTAL) return 0;
+  for (let i = 1; i < rec.length; i++){
+    if (rt <= rec[i].t){
+      const a = rec[i - 1], b = rec[i];
+      if (b.t === a.t) return b.u;
+      const g = (rt - a.t) / (b.t - a.t);
+      return a.u + (b.u - a.u) * (g * g * (3 - 2 * g));
+    }
+  }
+  return 0;
+}
+function progressAt(bt){
+  if (bt <= 0) return 0;
+  if (bt >= BUILD_TOTAL) return 1;
+  for (let i = 1; i < sched.length; i++){
+    if (bt <= sched[i].t){
+      const a = sched[i-1], b = sched[i];
+      if (b.t === a.t) return b.u;
+      const f = (bt - a.t) / (b.t - a.t);
+      return a.u + (b.u - a.u) * (f * f * f * (f * (f * 6 - 15) + 10));   // ease in/out per leg
+    }
+  }
+  return 1;
+}
+
+// surveyed route (dashed, revealed during intro)
+const surveyGeo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(400));
+const survey = new THREE.Line(surveyGeo, new THREE.LineDashedMaterial({
+  color:CFG.COL.coast, dashSize:0.28, gapSize:0.2, transparent:true, opacity:0.9
+}));
+survey.computeLineDistances();
+survey.geometry.setDrawRange(0, 0);
+scene.add(survey);
+
+// ---------------- MORSE SIGNAL (easter egg: each span transmits the next stop's name) ----------------
+const MORSE_MAP = {A:'.-',B:'-...',C:'-.-.',D:'-..',E:'.',F:'..-.',G:'--.',H:'....',I:'..',J:'.---',K:'-.-',L:'.-..',M:'--',N:'-.',O:'---',P:'.--.',Q:'--.-',R:'.-.',S:'...',T:'-',U:'..-',V:'...-',W:'.--',X:'-..-',Y:'-.--',Z:'--..'};
+function morseUnits(text){
+  const u = []; const push = (n, v) => { for (let i = 0; i < n; i++) u.push(v); };
+  text = text.toUpperCase();
+  for (let c = 0; c < text.length; c++){
+    const ch = text[c];
+    if (ch === ' '){ push(7, 0); continue; }
+    const code = MORSE_MAP[ch]; if (!code) continue;
+    for (let i = 0; i < code.length; i++){ push(code[i] === '.' ? 1 : 3, 1); push(1, 0); }
+    push(2, 0);
+  }
+  return u;
+}
+const MW = 8192, MUNIT = 4;
+const morseData = new Uint8Array(MW * 4);
+for (let i = 0; i < STATIONS.length - 1; i++){
+  const units = morseUnits(STATIONS[i + 1].name + '   ');
+  if (!units.length) continue;
+  const a = Math.floor(STATIONS[i].u * MW), b = Math.floor(STATIONS[i + 1].u * MW);
+  for (let t = a; t < b; t++){
+    const v = units[Math.floor((t - a) / MUNIT) % units.length] ? 255 : 0;
+    morseData[t * 4] = v; morseData[t * 4 + 1] = v; morseData[t * 4 + 2] = v; morseData[t * 4 + 3] = 255;
+  }
+}
+const morseTex = new THREE.DataTexture(morseData, MW, 1, THREE.RGBAFormat);
+morseTex.minFilter = THREE.LinearFilter; morseTex.magFilter = THREE.LinearFilter;
+morseTex.needsUpdate = true;
+
+// the wire — tube with progress-clipped shader
+const wireCurve = new THREE.CatmullRomCurve3(STATIONS.map(s => ll(s.lat, s.lon, WIRE_Y)), false, 'catmullrom', 0.35);
+const tubeGeo = new THREE.TubeGeometry(wireCurve, 900, 0.016, 6, false);
+const wireUniforms = {
+  uProgress:{value:0},
+  uTime:{value:0},
+  uTraffic:{value:0},
+  uBase:{value:new THREE.Color(CFG.COL.copper)},
+  uHot:{value:new THREE.Color(CFG.COL.hot)},
+  uMorse:{value:morseTex}
+};
+const wire = new THREE.Mesh(tubeGeo, new THREE.ShaderMaterial({
+  uniforms: wireUniforms,
+  vertexShader:
+    'varying vec2 vUv;' +
+    'void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader:
+    'uniform float uProgress; uniform float uTime; uniform float uTraffic;' +
+    'uniform vec3 uBase; uniform vec3 uHot; uniform sampler2D uMorse; varying vec2 vUv;' +
+    'void main(){' +
+    '  float d = uProgress - vUv.x;' +
+    '  if (d < 0.0) discard;' +
+    '  float head = exp(-d * 240.0);' +
+    '  float m = texture2D(uMorse, vec2(vUv.x, 0.5)).r;' +
+    '  float sw = fract(uTime * 0.18);' +
+    '  float sweep = exp(-abs(sw - vUv.x) * 16.0) + exp(-abs(sw - vUv.x + 1.0) * 16.0);' +
+    '  float sig = 0.4 + uTraffic * 0.6;' +
+    '  float lit = m * (0.32 + sweep * 1.5) * sig;' +
+    '  float glow = 0.16 + head * 1.7 + lit;' +
+    '  vec3 col = uBase * glow + uHot * (head * 0.9 + m * sweep * sig);' +
+    '  gl_FragColor = vec4(col, 1.0);' +
+    '}'
+}));
+scene.add(wire);
+
+// ---------------- POLES (instanced) ----------------
+const N = CFG.POLE_INSTANCES;
+const poleGeo = new THREE.CylinderGeometry(0.009, 0.012, POLE_H, 6);
+poleGeo.translate(0, POLE_H / 2, 0);
+const poles = new THREE.InstancedMesh(poleGeo,
+  new THREE.MeshBasicMaterial({color:CFG.COL.pole}), N);
+scene.add(poles);
+const armGeo = new THREE.BoxGeometry(0.26, 0.02, 0.022);
+armGeo.translate(0, POLE_H * 0.86, 0);
+const arms = new THREE.InstancedMesh(armGeo, new THREE.MeshBasicMaterial({color:CFG.COL.pole}), N);
+scene.add(arms);
+const poleU = [], poleP = [], poleQ = [], poleS = new Float32Array(N);
+{
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3();
+  const upv = new THREE.Vector3(0, 1, 0), xAxis = new THREE.Vector3(1, 0, 0),
+        perp = new THREE.Vector3(), tan = new THREE.Vector3();
+  for (let i = 0; i < N; i++){
+    const u = (i + 0.5) / N;
+    const p = curve.getPointAt(u);
+    p.x += (Math.random() - 0.5) * 0.03;
+    p.z += (Math.random() - 0.5) * 0.03;
+    tan.copy(curve.getTangentAt(u)).setY(0).normalize();
+    perp.crossVectors(upv, tan).normalize();
+    const aq = new THREE.Quaternion().setFromUnitVectors(xAxis, perp);
+    poleU.push(u); poleP.push(p); poleQ.push(aq);
+    sc.set(0.0001, 0.0001, 0.0001);
+    m.compose(p, q, sc); poles.setMatrixAt(i, m);
+    m.compose(p, aq, sc); arms.setMatrixAt(i, m);
+  }
+  poles.instanceMatrix.needsUpdate = true;
+  arms.instanceMatrix.needsUpdate = true;
+}
+
+// ---------------- STATION MARKERS + LABELS ----------------
+const labelsEl = document.getElementById('labels');
+const ringGeo = new THREE.RingGeometry(0.1, 0.15, 32);
+const tickGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.55, 4);
+tickGeo.translate(0, 0.275, 0);
+const pings = [];
+
+STATIONS.forEach((s, i) => {
+  const g = new THREE.Group();
+  g.position.copy(s.pos);
+
+  const ring = new THREE.Mesh(ringGeo,
+    new THREE.MeshBasicMaterial({color:CFG.COL.copper, transparent:true, opacity:0.9, side:THREE.DoubleSide}));
+  ring.rotation.x = -Math.PI/2;
+  g.add(ring);
+
+  const tick = new THREE.Mesh(tickGeo,
+    new THREE.MeshBasicMaterial({color:CFG.COL.ink, transparent:true, opacity:0.75}));
+  g.add(tick);
+
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:TEX_GLOW, color:CFG.COL.copper, transparent:true, opacity:0.85,
+    blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false
+  }));
+  spr.scale.set(0.9, 0.9, 1); spr.position.y = 0.06;
+  g.add(spr);
+
+  g.scale.setScalar(0.0001);
+  scene.add(g);
+
+  // expanding ping (hidden until triggered)
+  const ping = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({map:TEX_RING, color:CFG.COL.hot, transparent:true,
+      opacity:0, blending:THREE.AdditiveBlending, depthWrite:false}));
+  ping.rotation.x = -Math.PI/2;
+  ping.position.copy(s.pos);
+  scene.add(ping);
+  pings.push({mesh:ping, t0:-1});
+
+  // DOM label
+  const el = document.createElement('div');
+  el.className = 'stn' + (i % 2 ? ' left' : '') + (s.kind === 'end' ? ' ghost' : '');
+  const km = Math.round(s.u * CFG.TOTAL_KM);
+  const sub = s.sub || ('R' + String(s.r).padStart(2,'0') + ' · ' + km.toLocaleString('en') + ' KM');
+  el.innerHTML = '<div class="nm">' + s.name + '</div><div class="sb">' + sub + '</div>';
+  labelsEl.appendChild(el);
+
+  s.group = g; s.glow = spr; s.el = el; s.scale = 0; s.on = false; s.pingIdx = i;
+});
+
+// ---------------- BUILD HEAD ----------------
+const head = new THREE.Group();
+head.add(new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12),
+  new THREE.MeshBasicMaterial({color:CFG.COL.hot})));
+const headGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+  map:TEX_GLOW, color:CFG.COL.copper, transparent:true, opacity:0.95,
+  blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false}));
+headGlow.scale.set(1.7, 1.7, 1);
+head.add(headGlow);
+const groundGlow = new THREE.Sprite(new THREE.SpriteMaterial({map:TEX_GLOW, color:CFG.COL.copper,
+  transparent:true, opacity:0.42, blending:THREE.AdditiveBlending, depthWrite:false, depthTest:false}));
+groundGlow.scale.set(3.4, 3.4, 1); groundGlow.position.y = -0.3;
+head.add(groundGlow);
+scene.add(head);
+
+// ---------------- STATE ----------------
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let masterT = reduced ? CFG.INTRO_HOLD + BUILD_TOTAL : 0;
+let playing = !reduced;
+let speed = 1;
+let progress = 0;
+let lastProgress = 0;
+let traffic = 0;
+let dwell = 0;
+let closedAt = -1;
+let recapU = -1;
+
+const camState = {
+  mode:'AUTO',
+  sph:new THREE.Spherical(14, 1.0, 0.5),
+  pos:new THREE.Vector3(0, 46, 46),
+  tgt:mapCenter.clone(),
+  headSm:curve.getPointAt(0).clone(),
+  tanSm:new THREE.Vector3(0,0,1)
+};
+
+// ---------------- HUD REFS ----------------
+const $ = id => document.getElementById(id);
+const elKm = $('km'), elPoles = $('poles'), elStn = $('stn'), elDate = $('date');
+const elStatus = $('status'), elBanner = $('banner');
+const elFill = document.querySelector('#scrub .fill');
+const elKnob = document.querySelector('#scrub .knob');
+const btnPlay = $('btnPlay'), btnReplay = $('btnReplay'),
+      btnSpeed = $('btnSpeed'), btnCam = $('btnCam');
+const storyCard = $('storycard'),
+      storyNm = storyCard.querySelector('.nm'),
+      storyMeta = storyCard.querySelector('.meta'),
+      storyLn = storyCard.querySelector('.ln');
+const altScale = $('altscale'), altInd = altScale.querySelector('.ind'), altVal = altScale.querySelector('.val');
+const compTape = document.getElementById('comptape');
+(function(){
+  for (let d = -180; d <= 540; d += 15){
+    const m = ((d % 360) + 360) % 360;
+    const card = ({0:'N',90:'E',180:'S',270:'W'})[m];
+    const el = document.createElement('div');
+    el.className = 'ct' + (card ? ' card' : '');
+    el.textContent = card || '·';
+    el.style.left = ((d + 180) * 2.0) + 'px';
+    compTape.appendChild(el);
+  }
+})();
+
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const M0 = 1870 * 12 + 8, M1 = 1872 * 12 + 7; // SEP 1870 -> AUG 1872
+function fmtInt(n){ return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+// ---------------- CONTROLS ----------------
+btnPlay.addEventListener('click', () => {
+  playing = !playing;
+  btnPlay.textContent = playing ? 'PAUSE' : 'PLAY';
+});
+btnReplay.addEventListener('click', () => {
+  masterT = 0; playing = true; closedAt = -1; btnPlay.textContent = 'PAUSE';
+});
+btnSpeed.addEventListener('click', () => {
+  speed = speed === 1 ? 2 : (speed === 2 ? 4 : 1);
+  btnSpeed.textContent = 'SPD ×' + speed;
+});
+btnCam.addEventListener('click', () => {
+  camState.mode = 'AUTO'; btnCam.style.display = 'none';
+});
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space'){ e.preventDefault(); btnPlay.click(); }
+});
+
+// orbit / pinch on the canvas
+const ptrs = new Map();
+let pinchD = 0;
+function toFree(){
+  if (camState.mode !== 'FREE'){
+    camState.mode = 'FREE';
+    camState.sph.setFromVector3(camera.position.clone().sub(camState.tgt));
+    btnCam.style.display = 'inline-block';
+  }
+}
+renderer.domElement.addEventListener('pointerdown', e => {
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  if (ptrs.size === 2){
+    const a = [...ptrs.values()];
+    pinchD = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+  }
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!ptrs.has(e.pointerId)) return;
+  const prev = ptrs.get(e.pointerId);
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  toFree();
+  if (ptrs.size === 1){
+    camState.sph.theta -= dx * 0.005;
+    camState.sph.phi = THREE.MathUtils.clamp(camState.sph.phi - dy * 0.004, 0.18, 1.4);
+  } else if (ptrs.size === 2){
+    const a = [...ptrs.values()];
+    const d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+    if (pinchD > 0) camState.sph.radius = THREE.MathUtils.clamp(camState.sph.radius * pinchD / d, 4, 150);
+    pinchD = d;
+  }
+});
+['pointerup','pointercancel','pointerleave'].forEach(ev =>
+  renderer.domElement.addEventListener(ev, e => ptrs.delete(e.pointerId)));
+renderer.domElement.addEventListener('wheel', e => {
+  e.preventDefault(); toFree();
+  camState.sph.radius = THREE.MathUtils.clamp(
+    camState.sph.radius * Math.exp(e.deltaY * 0.0012), 4, 150);
+}, {passive:false});
+
+// scrub bar
+const scrubEl = $('scrub');
+let scrubbing = false;
+function seek(clientX){
+  const f = THREE.MathUtils.clamp(clientX / window.innerWidth, 0, 1);
+  masterT = CFG.INTRO_HOLD + f * BUILD_TOTAL;
+}
+scrubEl.addEventListener('pointerdown', e => { scrubbing = true; scrubEl.setPointerCapture(e.pointerId); seek(e.clientX); });
+scrubEl.addEventListener('pointermove', e => { if (scrubbing) seek(e.clientX); });
+['pointerup','pointercancel'].forEach(ev => scrubEl.addEventListener(ev, () => scrubbing = false));
+
+// ---------------- RESIZE ----------------
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------------- FRAMING HELPERS ----------------
+function fitDist(w, h){
+  const f = THREE.MathUtils.degToRad(camera.fov) / 2;
+  return Math.max((h / 2) / Math.tan(f), (w / 2) / (Math.tan(f) * camera.aspect)) * 1.14;
+}
+
+// ---------------- MAIN LOOP ----------------
+const clock = new THREE.Clock();
+const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpV3 = new THREE.Vector3(), tmpV4 = new THREE.Vector3();
+const HIGH_POS = new THREE.Vector3(mapCenter.x + 4, 95, mapCenter.z + 52);
+const HIGH_TGT = mapCenter.clone();
+const tmpVL = new THREE.Vector3();
+const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const introEase = t => 1 - Math.pow(1 - t, 3);
+camState.pos.copy(HIGH_POS); camState.tgt.copy(HIGH_TGT);
+const tmpM = new THREE.Matrix4(), tmpQ = new THREE.Quaternion(), tmpS = new THREE.Vector3();
+let hudKm = -1, hudPoles = -1, hudStn = -1, hudDate = '', hudStatus = '', hudStory = -1;
+
+function setStatus(t){ if (t !== hudStatus){ hudStatus = t; elStatus.textContent = t; } }
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const now = clock.elapsedTime;
+  const beatPulse = Math.pow(1 - ((now % BEAT) / BEAT), 2.2);   // sharp on each beat, decays
+
+  if (playing && !scrubbing) masterT += dt * speed;
+  masterT = Math.min(masterT, CFG.INTRO_HOLD + CFG.DUR + 9999);
+  const buildT = Math.max(0, masterT - CFG.INTRO_HOLD);
+  progress = progressAt(buildT);
+
+  // intro: reveal survey dashes
+  const introF = THREE.MathUtils.clamp(masterT / CFG.INTRO_HOLD, 0, 1);
+  survey.geometry.setDrawRange(0, Math.floor(401 * introF));
+
+  // wire
+  wireUniforms.uProgress.value = progress;
+  wireUniforms.uTime.value = now;
+  const trafficTgt = progress >= 1 ? 1 : 0;
+  traffic += (trafficTgt - traffic) * Math.min(1, dt * 1.6);
+  wireUniforms.uTraffic.value = Math.min(1, traffic + dwell * 0.5 * beatPulse);
+
+  // head
+  const headP = curve.getPointAt(progress);
+  head.position.copy(headP); head.position.y = headP.y + (WIRE_Y - 0.06);
+  head.visible = progress > 0 && progress < 1;
+  headGlow.material.opacity = 0.7 + 0.35 * beatPulse;
+
+  // poles
+  let dirty = false;
+  for (let i = 0; i < N; i++){
+    const tgt = progress >= poleU[i] ? 1 : 0;
+    const s = poleS[i];
+    if (Math.abs(tgt - s) > 0.001){
+      const ns = s + (tgt - s) * Math.min(1, dt * 9);
+      poleS[i] = ns;
+      const psc = Math.max(ns, 0.0001); tmpS.set(psc, psc, psc);
+      tmpM.compose(poleP[i], tmpQ, tmpS); poles.setMatrixAt(i, tmpM);
+      tmpM.compose(poleP[i], poleQ[i], tmpS); arms.setMatrixAt(i, tmpM);
+      dirty = true;
+    }
+  }
+  if (dirty){ poles.instanceMatrix.needsUpdate = true; arms.instanceMatrix.needsUpdate = true; }
+
+  // stations
+  let online = 0;
+  STATIONS.forEach((s, i) => {
+    const thresh = s.u <= 0 ? 0.0008 : s.u;
+    const isOn = progress >= thresh;
+    if (isOn && !s.on){
+      s.on = true; s.el.classList.add('on'); s.el.classList.remove('ghost');
+      pings[i].t0 = now;
+    } else if (!isOn && s.on){
+      s.on = false; s.el.classList.remove('on');
+      if (s.kind === 'end') s.el.classList.add('ghost');
+    }
+    if (s.r && s.on) online++;
+    const tgt = s.on ? 1 : 0;
+    if (Math.abs(tgt - s.scale) > 0.001){
+      s.scale += (tgt - s.scale) * Math.min(1, dt * 8);
+      s.group.scale.setScalar(Math.max(s.scale, 0.0001));
+    }
+    if (s.on && traffic > 0.02)
+      s.glow.material.opacity = 0.55 + 0.4 * Math.sin(now * 3 + i * 1.7);
+  });
+
+  // pings
+  pings.forEach(p => {
+    if (p.t0 < 0) return;
+    const t = (now - p.t0) / 0.9;
+    if (t >= 1){ p.mesh.material.opacity = 0; p.t0 = -1; return; }
+    p.mesh.scale.setScalar(0.5 + t * 3.2);
+    p.mesh.material.opacity = 0.85 * (1 - t);
+  });
+
+  // ---------------- camera ----------------
+  camState.headSm.lerp(headP, 1 - Math.exp(-dt * 3));
+  const tanNow = curve.getTangentAt(THREE.MathUtils.clamp(progress, 0.0001, 0.9999));
+  camState.tanSm.lerp(tanNow, 1 - Math.exp(-dt * 2.0));
+  if (camState.tanSm.lengthSq() < 1e-6) camState.tanSm.set(0, 0, 1);
+  camState.tanSm.normalize();
+
+  // trailing, slightly-elevated chase rig locked to the build head
+  const CHASE_BACK = 3.0, CHASE_UP = 1.5, CHASE_AHEAD = 3.5, CHASE_SIDE = 3.5;
+  const PUSH_BACK = 1.5, PUSH_UP = 0.35;                       // cinematic dolly-in while parked
+  const pSpeed = dt > 0 ? Math.abs(progress - lastProgress) / dt : 0;
+  const dwellTgt = (progress > 0 && progress < 1 && pSpeed < 0.0009) ? 1 : 0;
+  dwell += (dwellTgt - dwell) * Math.min(1, dt * 3);
+  const pin = Math.max(0, (dwell - 0.5) / 0.5);   // dead stop first, then ease the push-in
+  const camLeft = tmpVL.crossVectors(WORLD_UP, camState.tanSm).normalize();   // left of travel; flip sign to swap sides
+  const hDrop = curveDrop(camState.headSm.x, camState.headSm.z);
+  const chaseTgt = tmpV.copy(camState.headSm).addScaledVector(camState.tanSm, CHASE_AHEAD * (1 - dwell * 0.6)); chaseTgt.y = 0.30 - hDrop;
+  const chasePos = tmpV2.copy(camState.headSm).addScaledVector(camState.tanSm, -(CHASE_BACK - pin * PUSH_BACK)).addScaledVector(camLeft, CHASE_SIDE * (1 - pin * 0.25)); chasePos.y = CHASE_UP - pin * PUSH_UP - hDrop + 2.6 * (1 - Math.sin(Math.PI * progress));
+  const flo = pin * 0.16;
+  chasePos.y += flo * Math.sin(now * 0.9);
+  chasePos.x += flo * 1.6 * Math.sin(now * 0.55 + 1.0);
+  chaseTgt.y += flo * 0.5 * Math.sin(now * 0.7);
+
+  let dTgt, dPos;
+  if (masterT < CFG.INTRO_HOLD){
+    // fly in from high altitude, easing down into the chase over the survey hold
+    const ie = introEase(THREE.MathUtils.clamp(masterT / CFG.INTRO_HOLD, 0, 1));
+    dTgt = tmpV3.copy(HIGH_TGT).lerp(chaseTgt, ie);
+    dPos = tmpV4.copy(HIGH_POS).lerp(chasePos, ie);
+    scene.fog.near = 70; scene.fog.far = 460;
+  } else if (progress < 1){
+    // follow the wire north at a slightly elevated, trailing perspective
+    closedAt = -1; recapU = -1;
+    dTgt = chaseTgt;
+    dPos = chasePos;
+    scene.fog.near = 40; scene.fog.far = 170;
+  } else {
+    // circuit closed at Darwin -> then fly all the way back south to South Australia (book-end)
+    if (closedAt < 0) closedAt = masterT;
+    const ft = masterT - closedAt;
+    const HOLD_D = 5.0, recapEnd = HOLD_D + RECAP_TOTAL;
+    if (ft < HOLD_D){
+      // Darwin fly-around: slow eased banking orbit, view locked on Darwin so it swings smoothly (no flip)
+      const dP = STATIONS[STATIONS.length - 1].pos;
+      const dDrop = curveDrop(dP.x, dP.z);
+      const e = THREE.MathUtils.smoothstep(ft / HOLD_D, 0, 1);   // slow-in / slow-out
+      const ang = -Math.PI * e;                                  // south -> west -> north (clockwise arc)
+      const R = 6.5, bank = Math.sin(e * Math.PI) * 2.6;         // rise then settle = the bank
+      dPos = tmpV3.set(dP.x + R * Math.sin(ang), (1.8 + bank) - dDrop, dP.z + R * Math.cos(ang));
+      dTgt = tmpV4.copy(dP).setY(0.4 - dDrop);
+      recapU = 1;
+      scene.fog.near = 30; scene.fog.far = 200;
+    } else if (ft < recapEnd){
+      // travelling 3/4 recap flying south, pausing at each stop, back to SA
+      const uB = recapAt(ft - HOLD_D);
+      recapU = uB;
+      const p = curve.getPointAt(uB);
+      const tanB = curve.getTangentAt(uB);                 // tangent points north
+      const left = tmpVL.crossVectors(WORLD_UP, tanB).normalize();
+      const rDrop = curveDrop(p.x, p.z);
+      dPos = tmpV3.copy(p).addScaledVector(tanB, 5.0).addScaledVector(left, -3.5); dPos.y = 2.8 - rDrop + 2.8 * (1 - Math.sin(Math.PI * uB));
+      dTgt = tmpV4.copy(p).addScaledVector(tanB, -2.4); dTgt.y = 0.4 - rDrop;
+      scene.fog.near = 34; scene.fog.far = 190;
+    } else {
+      // climb back out to the opening altitude over the SA origin (graceful end / seamless loop)
+      const ce = THREE.MathUtils.smoothstep((ft - recapEnd) / 5.0, 0, 1);
+      const p0 = curve.getPointAt(0), t0 = curve.getTangentAt(0);
+      const l0 = tmpVL.crossVectors(WORLD_UP, t0).normalize();
+      const d0 = curveDrop(p0.x, p0.z);
+      dPos = tmpV3.copy(p0).addScaledVector(t0, 5.0).addScaledVector(l0, 3.0); dPos.y = 2.8 - d0; dPos.lerp(HIGH_POS, ce);
+      dTgt = tmpV4.copy(p0).addScaledVector(t0, -2.4); dTgt.y = 0.4 - d0; dTgt.lerp(HIGH_TGT, ce);
+      recapU = 0;
+      scene.fog.near = 40; scene.fog.far = 480;
+    }
+  }
+  if (camState.mode === 'FREE'){
+    dTgt = camState.tgt;
+    dPos = tmpV4.setFromSpherical(camState.sph).add(camState.tgt);
+  }
+  const k = 1 - Math.exp(-dt * 2.4);
+  camState.tgt.lerp(dTgt, k);
+  camState.pos.lerp(dPos, k);
+  camera.position.copy(camState.pos);
+  camera.lookAt(camState.tgt);
+
+  // ---------------- labels (project to screen) ----------------
+  const w = window.innerWidth, h = window.innerHeight;
+  const camDist = camera.position.distanceTo(camState.tgt);
+  labelsEl.classList.toggle('compact', camDist > 26);
+  const cand = [];
+  STATIONS.forEach(s => {
+    const dist = camera.position.distanceTo(s.pos);
+    const op = THREE.MathUtils.clamp((13.0 - dist) / 7.0, 0, 1);
+    tmpV.copy(s.pos).setY(0.35).project(camera);
+    if (op <= 0.01 || tmpV.z > 1){ s.el.style.display = 'none'; return; }
+    cand.push({ s, dist, op, x: (tmpV.x * 0.5 + 0.5) * w, y: (-tmpV.y * 0.5 + 0.5) * h });
+  });
+  cand.sort((a, b) => a.dist - b.dist);
+  const taken = [];
+  const tw = document.getElementById('titlewrap');
+  if (tw){ const r = tw.getBoundingClientRect(); taken.push([r.left, r.top, r.right, r.bottom]); }
+  if (storyCard.classList.contains('show')){ const r = storyCard.getBoundingClientRect(); taken.push([r.left, r.top, r.right, r.bottom]); }
+  cand.forEach(c => {
+    const el = c.s.el; el.style.display = '';
+    const isLeft = el.classList.contains('left');
+    el.style.transform = 'translate(' + c.x.toFixed(1) + 'px,' + c.y.toFixed(1) + 'px) ' + (isLeft ? 'translate(calc(-100% - 12px), -50%)' : 'translate(12px, -50%)');
+    const bw = el.offsetWidth, bh = el.offsetHeight;
+    const l = c.x + (isLeft ? -(bw + 12) : 12), t = c.y - bh / 2;
+    const box = [l - 6, t - 4, l + bw + 6, t + bh + 4];
+    const hit = taken.some(k => !(box[2] < k[0] || box[0] > k[2] || box[3] < k[1] || box[1] > k[3]));
+    if (hit){ el.style.opacity = '0'; return; }   // would stack -> fade away
+    taken.push(box);
+    el.style.opacity = c.op.toFixed(2);
+  });
+
+  // ---------------- HUD ----------------
+  const km = Math.round(progress * CFG.TOTAL_KM);
+  if (km !== hudKm){ hudKm = km; elKm.textContent = String(km).padStart(4, '0'); }
+  const pl = Math.round(progress * CFG.TOTAL_POLES);
+  if (pl !== hudPoles){ hudPoles = pl; elPoles.textContent = fmtInt(pl); }
+  if (online !== hudStn){ hudStn = online; elStn.textContent = String(online).padStart(2, '0'); }
+  const mi = Math.round(M0 + (M1 - M0) * progress);
+  const dateStr = MONTHS[mi % 12] + ' ' + Math.floor(mi / 12);
+  if (dateStr !== hudDate){ hudDate = dateStr; elDate.textContent = dateStr; }
+
+  // current stop -> story caption (talking points)
+  let curIdx = 0;
+  const uSel = recapU >= 0 ? recapU : progress;
+  for (let i = 0; i < STATIONS.length; i++){ if (uSel + 1e-4 >= STATIONS[i].u) curIdx = i; }
+  if (curIdx !== hudStory){
+    hudStory = curIdx;
+    const cs = STATIONS[curIdx];
+    const ckm = Math.round(cs.u * CFG.TOTAL_KM);
+    storyNm.textContent = cs.name;
+    storyMeta.textContent = cs.kind === 'end' ? (cs.sub || '') : ('REPEATER ' + String(cs.r).padStart(2,'0') + ' · ' + ckm.toLocaleString('en') + ' KM');
+    storyLn.textContent = ((recapU >= 0 ? (cs.short || cs.story) : cs.story) || '');
+    if (recapU >= 0 && pings[curIdx]) pings[curIdx].t0 = now;
+  }
+  storyCard.classList.toggle('show', masterT >= CFG.INTRO_HOLD - 0.4);
+
+  if (masterT < CFG.INTRO_HOLD){
+    setStatus('STANDBY · SURVEY LOCKED — C. TODD, 1870');
+  } else if (progress >= 1){
+    setStatus('CIRCUIT CLOSED · TRAFFIC LIVE');
+  } else {
+    let a = STATIONS[0], b = STATIONS[STATIONS.length - 1];
+    for (let i = 0; i < STATIONS.length - 1; i++){
+      if (progress >= STATIONS[i].u && progress < STATIONS[i+1].u){ a = STATIONS[i]; b = STATIONS[i+1]; break; }
+    }
+    setStatus('SPAN · ' + a.name + ' → ' + b.name);
+  }
+
+  elBanner.classList.toggle('show', progress >= 1);
+  const f = progress;
+  elFill.style.width = (f * 100).toFixed(2) + '%';
+  elKnob.style.left = (f * 100).toFixed(2) + '%';
+  const altN = THREE.MathUtils.clamp(camera.position.y / 100, 0, 1);
+  altInd.style.bottom = (altN * 100).toFixed(1) + '%';
+  altVal.style.bottom = (altN * 100).toFixed(1) + '%';
+  altVal.textContent = Math.round(camera.position.y * 50) + ' m';
+  const cdx = camState.tgt.x - camera.position.x, cdz = camState.tgt.z - camera.position.z;
+  let H = Math.atan2(cdx, -cdz) * 180 / Math.PI; if (H < 0) H += 360;
+  compTape.style.transform = 'translateX(' + (120 - (H + 180) * 2.0).toFixed(1) + 'px)';
+
+  lastProgress = progress;
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>
