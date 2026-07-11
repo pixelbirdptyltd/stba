@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ep. 02 — Snowy Mountains · The Water &amp; Power Machine</title>
+<meta name="description" content="Open the gates of the Snowy Scheme and watch snowmelt turn into megawatts. An interactive control-room tool.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="site.css">
+<style>
+.ep-hero{ padding:150px 0 40px; position:relative; z-index:2; }
+.ep-hero .no{ font-family:var(--mono); font-size:12px; letter-spacing:.28em; color:var(--cyan); }
+.ep-hero h1{ font-size:clamp(46px,8.5vw,120px); margin:18px 0 0; }
+.ep-hero h1 em{ font-style:normal; color:var(--cyan); }
+.ep-hero .sub{ max-width:660px; color:var(--ink-dim); margin-top:18px; font-size:clamp(15px,1.8vw,19px); }
+.crumbs{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:8px; }
+.crumbs a{ color:var(--ink-faint); } .crumbs a:hover{ color:var(--amber); }
+
+.tool{ position:relative; z-index:2; border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:#04070a; }
+.tool-head{ display:flex; justify-content:space-between; align-items:center; padding:18px 28px; border-bottom:1px solid var(--line); flex-wrap:wrap; gap:10px; }
+.tool-head .t{ font-family:var(--mono); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--cyan); }
+.tool-head .badge{ font-family:var(--mono); font-size:10px; letter-spacing:.2em; color:var(--ink-faint); text-transform:uppercase; }
+.tool-body{ display:grid; grid-template-columns:1fr 340px; min-height:580px; }
+@media(max-width:900px){ .tool-body{ grid-template-columns:1fr; } }
+.stage{ position:relative; min-height:460px; }
+#snowy-canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; cursor:grab; }
+#snowy-canvas:active{ cursor:grabbing; }
+.stage .hint{ position:absolute; left:18px; bottom:14px; font-family:var(--mono); font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-faint); z-index:3; }
+.panel-side{ border-left:1px solid var(--line); padding:22px; background:var(--panel); }
+@media(max-width:900px){ .panel-side{ border-left:0; border-top:1px solid var(--line); } }
+.panel-side h4{ font-family:var(--mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 16px; }
+.mw{ text-align:center; padding:18px 0 12px; border:1px solid var(--line); margin-bottom:18px; background:linear-gradient(180deg,rgba(79,214,255,.05),transparent); }
+.mw .v{ font-family:var(--disp); font-size:66px; line-height:.9; color:var(--cyan); }
+.mw .k{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-faint); }
+.bar{ height:6px; background:var(--line-2); margin:14px 0 6px; position:relative; overflow:hidden; }
+.bar i{ position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg,var(--cyan),var(--amber)); transition:width .25s; }
+.readout.two{ grid-template-columns:1fr 1fr; margin-bottom:18px; }
+.readout .v{ color:var(--cyan); }
+.btrow{ display:flex; gap:10px; margin:14px 0 4px; }
+.btrow .btn{ flex:1; justify-content:center; padding:12px; }
+.btn.on{ border-color:var(--cyan); color:var(--cyan); background:rgba(79,214,255,.1); }
+
+.acts{ display:grid; grid-template-columns:repeat(2,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
+@media(max-width:820px){ .acts{ grid-template-columns:1fr; } }
+.act{ background:var(--panel); padding:26px; }
+.act .n{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; color:var(--cyan); }
+.act h3{ font-size:24px; margin:12px 0 10px; }
+.act p{ color:var(--ink-dim); font-size:15px; margin:0; }
+.cost{ display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
+@media(max-width:720px){ .cost{ grid-template-columns:repeat(2,1fr); } }
+.cost .c{ background:var(--panel); padding:24px 20px; }
+.cost .c .v{ font-family:var(--disp); font-size:42px; color:var(--cyan); line-height:1; }
+.cost .c .k{ font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-dim); margin-top:10px; }
+.longform{ max-width:720px; } .longform p{ color:var(--ink-dim); font-size:16px; }
+.longform .lede{ color:var(--ink); font-size:clamp(18px,2.2vw,24px); line-height:1.45; }
+.pager{ display:flex; justify-content:space-between; border-top:1px solid var(--line); padding-top:26px; margin-top:10px; }
+.pager a{ font-family:var(--mono); font-size:12px; letter-spacing:.16em; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <a class="brandmark" href="index.html"><span class="sig"></span><b>SYSTEMS THAT BUILT <span>AUSTRALIA</span></b></a>
+  <div class="navlinks">
+    <a href="index.html#episodes">Episodes</a>
+    <a href="./overland-telegraph.html">Ep 01</a>
+    <a class="live" href="#tool">Tool Live</a>
+  </div>
+</nav>
+
+<header class="ep-hero">
+  <div class="wrap">
+    <div class="crumbs"><a href="index.html">Systems</a> / <a href="index.html#episodes">Season 01</a> / Episode 02</div>
+    <div class="no">EP 02 · WATER &amp; POWER · 1949–1974</div>
+    <h1>Snowy <em>Mountains</em></h1>
+    <p class="sub">Sixteen dams, 145 km of tunnels and seven power stations that turned alpine snowmelt into electricity and irrigation. Below is the extra: open the gates, change the weather, and watch water become megawatts.</p>
+  </div>
+</header>
+
+<!-- ============ INTERACTIVE TOOL ============ -->
+<section class="tool" id="tool">
+  <div class="tool-head">
+    <span class="t">⊹ The Water &amp; Power Machine — interactive extra</span>
+    <span class="badge">DRAG TO ORBIT · WEBGL</span>
+  </div>
+  <div class="tool-body">
+    <div class="stage">
+      <canvas id="snowy-canvas"></canvas>
+      <div class="hint">Snowmelt → reservoirs → tunnels → turbines → grid</div>
+    </div>
+    <aside class="panel-side">
+      <h4>◂ Generation Console</h4>
+      <div class="mw">
+        <div class="v" id="r-mw">0</div>
+        <div class="k">Megawatts to the grid</div>
+        <div class="bar"><i id="r-bar"></i></div>
+        <div class="k" id="r-cap" style="margin-top:8px">0% of 3,800 MW capacity</div>
+      </div>
+      <div class="readout two">
+        <div class="cell"><div class="k">Inflow</div><div class="v" id="r-flow" style="font-size:26px">0<small> GL/d</small></div></div>
+        <div class="cell"><div class="k">Homes powered</div><div class="v" id="r-homes" style="font-size:26px">0</div></div>
+      </div>
+
+      <div class="control">
+        <label>Snowmelt / rainfall <b id="r-rain">60%</b></label>
+        <input id="rain" type="range" min="0" max="100" value="60">
+      </div>
+      <div class="btrow">
+        <button class="btn on" id="gates">◧ Gates: OPEN</button>
+      </div>
+      <div class="btrow">
+        <button class="btn" id="drought">Drought year</button>
+        <button class="btn" id="wet">Big wet</button>
+      </div>
+      <p class="notice" style="margin-top:16px">A simplified model of a real scheme — output scales with inflow and open gates. Figures illustrative.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- STORY -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div><span class="tag">The Story</span><h2 style="margin-top:16px">Harnessing water &amp; power</h2></div>
+      <p class="lead">A post-war nation short of power and water decided to reverse a river through a mountain range — and built one of the world's great engineering schemes doing it.</p>
+    </div>
+    <div class="acts">
+      <div class="act"><div class="n">ACT I</div><h3>Drought and demand</h3><p>A growing post-war Australia needed reliable electricity and water for irrigation. The rivers ran the wrong way — east, to the sea — while the dry inland went without.</p></div>
+      <div class="act"><div class="n">ACT II</div><h3>The decision, 1949</h3><p>The Snowy Mountains Hydro-Electric Scheme was authorised: collect alpine snowmelt, send it west through the range in tunnels, and generate power on the way down.</p></div>
+      <div class="act"><div class="n">ACT III</div><h3>Tunnelling the range</h3><p>16 major dams, 145 km of tunnels and 80 km of aqueducts, largely underground — a quarter-century of drilling through the Snowy Mountains, finished in 1974.</p></div>
+      <div class="act"><div class="n">ACT IV</div><h3>The 100,000</h3><p>Around 100,000 workers from more than 40 countries built it. The scheme became a symbol of post-war migration as much as of engineering — and reshaped the towns and country around it.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- COST COLUMN -->
+<section class="section" style="padding-top:0">
+  <div class="wrap">
+    <span class="tag">The Cost Column</span>
+    <h2 style="margin:16px 0 34px">What it took to build</h2>
+    <div class="cost">
+      <div class="c"><div class="v">16</div><div class="k">Major dams</div></div>
+      <div class="c"><div class="v">145 km</div><div class="k">Of tunnels</div></div>
+      <div class="c"><div class="v">7</div><div class="k">Power stations</div></div>
+      <div class="c"><div class="v">100,000</div><div class="k">Workers · 40+ nations</div></div>
+    </div>
+    <div class="longform" style="margin-top:40px">
+      <p class="lede">The Snowy gave the country power and water. It also flooded valleys, moved rivers, and cost the lives of more than a hundred workers who built it.</p>
+      <p>The scheme is rightly remembered as nation-building on an epic scale — and the same water that spins the turbines was taken from ecosystems and communities downstream, with environmental consequences still being managed today. As with every system in this series, the extra above lets you run the machine; the story asks what it cost to build.</p>
+    </div>
+    <div class="pager">
+      <a href="./overland-telegraph.html">← Ep 01 · Overland Telegraph</a>
+      <a href="index.html#episodes">All episodes →</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap footer-grid">
+    <div class="col">
+      <a class="brandmark" href="index.html" style="margin-bottom:16px"><span class="sig"></span><b>SYSTEMS THAT BUILT <span>AUSTRALIA</span></b></a>
+      <p>Every episode explains how one system made modern Australian life possible — and what it cost to build.</p>
+      <p class="coords" style="margin-top:18px">© 2026 PIXELBIRD · A DUSTIN GRAY PRODUCTION</p>
+    </div>
+    <div><h4>Episodes</h4><a href="./overland-telegraph.html">01 · Overland Telegraph</a><a href="./snowy-mountains-scheme.html">02 · Snowy Mountains</a><a href="index.html#episodes">Full slate</a></div>
+    <div><h4>Series</h4><a href="index.html#extras">The Extras</a><a href="index.html#about">About</a><a href="mailto:admin@pixelbird.com.au">Contact</a></div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============================================================
+   THE WATER & POWER MACHINE — interactive Snowy Scheme tool
+   ============================================================ */
+(function(){
+  const canvas=document.getElementById('snowy-canvas');
+  if(!window.THREE) return;
+  let renderer; try{ renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true}); }catch(e){ return; }
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(45,1,0.1,1000);
+  camera.position.set(0,10,64);
+  const world=new THREE.Group(); scene.add(world);
+
+  // ground grid
+  const grid=new THREE.GridHelper(90,18,0x1b3040,0x122029);
+  grid.position.y=-14; world.add(grid);
+
+  // soft dot texture
+  const c=document.createElement('canvas'); c.width=c.height=64;
+  const g2=c.getContext('2d'); const rg=g2.createRadialGradient(32,32,0,32,32,32);
+  rg.addColorStop(0,'#fff'); rg.addColorStop(.4,'rgba(255,255,255,.8)'); rg.addColorStop(1,'rgba(255,255,255,0)');
+  g2.fillStyle=rg; g2.fillRect(0,0,64,64);
+  const TEX=new THREE.CanvasTexture(c);
+
+  // ---- mountain ridge (wireframe) ----
+  const ridge=new THREE.Group();
+  [[-22,10,-14,18],[ -6,16,-16,22],[12,12,-13,17],[26,8,-12,13]].forEach(([x,h,z,r])=>{
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(r,h,6,1,true),
+      new THREE.MeshBasicMaterial({color:0x25506a,wireframe:true,transparent:true,opacity:.35}));
+    cone.position.set(x,h/2-14,z); ridge.add(cone);
+  });
+  world.add(ridge);
+
+  // ---- three reservoir -> tunnel -> station chains ----
+  const chains=[];
+  const chainDefs=[
+    {x:-18, top: 16, z:-6},
+    {x:  0, top: 20, z:-8},
+    {x: 18, top: 13, z:-6}
+  ];
+
+  chainDefs.forEach(d=>{
+    const resPos=new THREE.Vector3(d.x, d.top, d.z);
+    const staPos=new THREE.Vector3(d.x*0.7, -10, 12);
+
+    // reservoir basin (ring) + water disc
+    const basin=new THREE.Mesh(new THREE.CylinderGeometry(5,5.4,1.4,20,1,true),
+      new THREE.MeshBasicMaterial({color:0x2f6a86,wireframe:true,transparent:true,opacity:.5}));
+    basin.position.copy(resPos); world.add(basin);
+    const water=new THREE.Mesh(new THREE.CylinderGeometry(4.6,4.6,0.4,20),
+      new THREE.MeshBasicMaterial({color:0x4fd6ff,transparent:true,opacity:.5}));
+    water.position.copy(resPos); world.add(water);
+
+    // tunnel curve reservoir -> station
+    const mid=new THREE.Vector3((resPos.x+staPos.x)/2, (resPos.y+staPos.y)/2-3, (resPos.z+staPos.z)/2);
+    const curve=new THREE.CatmullRomCurve3([resPos.clone().add(new THREE.Vector3(0,-1,0)), mid, staPos.clone().add(new THREE.Vector3(0,3,0))]);
+    const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,40,0.7,8,false),
+      new THREE.MeshBasicMaterial({color:0x1d4a5f,wireframe:true,transparent:true,opacity:.4}));
+    world.add(tube);
+
+    // water particles in tunnel
+    const N=60;
+    const pg=new THREE.BufferGeometry(); const pos=new Float32Array(N*3);
+    pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const pm=new THREE.PointsMaterial({color:0x9fe8ff,size:1.5,map:TEX,transparent:true,opacity:.95,blending:THREE.AdditiveBlending,depthWrite:false});
+    const parts=new THREE.Points(pg,pm); world.add(parts);
+    const offs=Array.from({length:N},(_,i)=>i/N);
+
+    // power station block + turbine ring
+    const sta=new THREE.Mesh(new THREE.BoxGeometry(6,5,5),
+      new THREE.MeshBasicMaterial({color:0x0d2230}));
+    sta.position.copy(staPos); world.add(sta);
+    const staEdge=new THREE.LineSegments(new THREE.EdgesGeometry(sta.geometry),
+      new THREE.LineBasicMaterial({color:0x4fd6ff,transparent:true,opacity:.6}));
+    staEdge.position.copy(staPos); world.add(staEdge);
+    const turbine=new THREE.Mesh(new THREE.TorusGeometry(1.6,0.35,8,20),
+      new THREE.MeshBasicMaterial({color:0x4fd6ff}));
+    turbine.position.copy(staPos).add(new THREE.Vector3(0,0,2.7)); world.add(turbine);
+
+    chains.push({curve,parts,pg,offs,N,water,resPos,turbine,staEdge,sta});
+  });
+
+  // grid busbar line linking stations to a "grid" node
+  const gridNode=new THREE.Vector3(0,-10,26);
+  chains.forEach(ch=>{
+    world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([ch.turbine.position, gridNode]),
+      new THREE.LineBasicMaterial({color:0x2b4b3a,transparent:true,opacity:.5})));
+  });
+  const gridMesh=new THREE.Mesh(new THREE.OctahedronGeometry(1.6),
+    new THREE.MeshBasicMaterial({color:0x57e39a,wireframe:true}));
+  gridMesh.position.copy(gridNode); world.add(gridMesh);
+
+  world.position.y=2;
+
+  // ---- state / model ----
+  const CAP=3800; // MW
+  let rain=60, gatesOpen=true, flowFactor=0;
+  const rEl={mw:val('r-mw'),bar:val('r-bar'),cap:val('r-cap'),flow:val('r-flow'),homes:val('r-homes'),rain:val('r-rain')};
+  function val(id){return document.getElementById(id);}
+
+  function targetFlow(){ return gatesOpen ? (rain/100) : 0; }
+  function updateReadout(){
+    const mw=Math.round(CAP*flowFactor);
+    const pct=Math.round(flowFactor*100);
+    const gl=(flowFactor*24).toFixed(1);           // illustrative GL/day
+    const homes=Math.round(mw*230);
+    rEl.mw.textContent=mw.toLocaleString();
+    rEl.bar.style.width=pct+'%';
+    rEl.cap.textContent=pct+'% of 3,800 MW capacity';
+    rEl.flow.innerHTML=gl+'<small> GL/d</small>';
+    rEl.homes.textContent=homes>=1000?(homes/1000).toFixed(homes>=100000?0:1)+'k':homes;
+    rEl.rain.textContent=rain+'%';
+    // reservoir levels rise with rain
+    chains.forEach((ch,i)=>{
+      const lvl=0.4+ (rain/100)*3.2;
+      ch.water.scale.y=lvl/0.4;
+      ch.water.position.y=ch.resPos.y - 0.7 + (lvl*0.5);
+      ch.water.material.opacity=0.35+(rain/100)*0.4;
+      // station glow with output
+      const lit=flowFactor;
+      ch.turbine.material.color.setRGB(0.31+lit*0.0, 0.84*(0.3+lit*0.7), 1.0*(0.3+lit*0.7));
+      ch.staEdge.material.opacity=0.35+lit*0.55;
+      ch.sta.material.color.setRGB(0.05+lit*0.15, 0.13+lit*0.35, 0.19+lit*0.45);
+    });
+    gridMesh.material.color.setRGB(0.34*(0.4+flowFactor*0.6), 0.89*(0.4+flowFactor*0.6), 0.60*(0.4+flowFactor*0.6));
+  }
+
+  // controls
+  const rainEl=document.getElementById('rain');
+  rainEl.addEventListener('input',()=>{ rain=+rainEl.value; updateReadout(); });
+  const gatesBtn=document.getElementById('gates');
+  gatesBtn.addEventListener('click',()=>{
+    gatesOpen=!gatesOpen;
+    gatesBtn.textContent=gatesOpen?'◧ Gates: OPEN':'◧ Gates: CLOSED';
+    gatesBtn.classList.toggle('on',gatesOpen);
+  });
+  document.getElementById('drought').addEventListener('click',()=>{ rain=18; rainEl.value=18; if(!gatesOpen){gatesOpen=true;gatesBtn.textContent='◧ Gates: OPEN';gatesBtn.classList.add('on');} updateReadout(); });
+  document.getElementById('wet').addEventListener('click',()=>{ rain=95; rainEl.value=95; if(!gatesOpen){gatesOpen=true;gatesBtn.textContent='◧ Gates: OPEN';gatesBtn.classList.add('on');} updateReadout(); });
+
+  // drag orbit
+  let dragging=false,px=0,py=0,ry=0.0,rx=0.02, tRy=0.0,tRx=0.02;
+  canvas.addEventListener('pointerdown',e=>{dragging=true;px=e.clientX;py=e.clientY;});
+  window.addEventListener('pointerup',()=>dragging=false);
+  window.addEventListener('pointermove',e=>{ if(dragging){ tRy+=(e.clientX-px)*0.006; tRx+=(e.clientY-py)*0.004; tRx=Math.max(-0.2,Math.min(0.6,tRx)); px=e.clientX;py=e.clientY; }});
+
+  function resize(){
+    const w=canvas.clientWidth,h=canvas.clientHeight;
+    if(canvas.width!==w||canvas.height!==h) renderer.setSize(w,h,false);
+    camera.aspect=w/h; camera.position.z=w<620?92:(w<900?78:64); camera.updateProjectionMatrix();
+  }
+
+  const clock=new THREE.Clock();
+  function frame(){
+    resize();
+    const dt=clock.getDelta(), t=clock.elapsedTime;
+    // ease flow toward target
+    flowFactor += (targetFlow()-flowFactor)*Math.min(1,dt*2.2);
+    updateReadout();
+    // auto slow spin + drag
+    tRy += 0.0016;
+    ry+=(tRy-ry)*0.08; rx+=(tRx-rx)*0.08;
+    world.rotation.y=ry; world.rotation.x=rx;
+    // move water particles
+    chains.forEach(ch=>{
+      const arr=ch.pg.attributes.position.array;
+      const speed=0.06+flowFactor*0.5;
+      for(let i=0;i<ch.N;i++){
+        let u=(ch.offs[i]+t*speed)%1;
+        const v=ch.curve.getPoint(u);
+        arr[i*3]=v.x; arr[i*3+1]=v.y; arr[i*3+2]=v.z;
+      }
+      ch.pg.attributes.position.needsUpdate=true;
+      ch.parts.material.opacity=0.15+flowFactor*0.85;
+      ch.turbine.rotation.z += (0.02+flowFactor*0.5);
+    });
+    gridMesh.rotation.y+=0.01; gridMesh.rotation.x+=0.006;
+    renderer.render(scene,camera);
+    requestAnimationFrame(frame);
+  }
+  updateReadout(); resize(); frame();
+})();
+</script>
+</body>
+</html>
